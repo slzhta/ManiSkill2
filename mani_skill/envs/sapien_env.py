@@ -846,6 +846,38 @@ class BaseEnv(gym.Env):
             else self._elapsed_steps.clone()
         )
         info.update(self.evaluate())
+
+        if self.robot_uids == 'xarm7_ability':
+            for finger_tip in self.agent.finger_tip_links:
+                info.update({finger_tip.name : finger_tip.pose.p})
+            
+            for front_link in self.agent.hand_front_links:
+                info.update({front_link.name : front_link.pose.p})
+            
+            for behind_link in self.agent.hand_behind_links:
+                info.update({behind_link.name : behind_link.pose.p})
+            
+            info.update({self.agent.hand_base.name : self.agent.hand_base.pose.p})
+            info.update({self.agent.link_base.name : self.agent.link_base.pose.p})
+            info.update({self.agent.unknow_base.name : self.agent.unknow_base.pose.p})
+
+            for arm_link in self.agent.arm_links:
+                info.update({arm_link.name : arm_link.pose.p})
+        
+        if self.robot_uids == 'xarm7_five':
+            for front_link in self.agent.hand_front_links:
+                info.update({front_link.name : front_link.pose.p})
+            
+            for behind_link in self.agent.hand_behind_links:
+                info.update({behind_link.name : behind_link.pose.p})
+            
+            info.update({self.agent.hand_base.name : self.agent.hand_base.pose.p})
+            info.update({self.agent.link_base.name : self.agent.link_base.pose.p})
+            info.update({self.agent.tcp.name : self.agent.tcp.pose.p})
+
+            for arm_link in self.agent.arm_links:
+                info.update({arm_link.name : arm_link.pose.p})
+
         return info
 
     def _before_control_step(self):

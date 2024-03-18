@@ -18,12 +18,13 @@ See comments for how to make your own environment and what each required functio
 from collections import OrderedDict
 from typing import Any, Dict, Union
 
+from mani_skill.agents.robots.xarm.xarm7_five import XArm7Five
 import numpy as np
 import torch
 import torch.random
 from transforms3d.euler import euler2quat
 
-from mani_skill.agents.robots import Fetch, Panda, Xmate3Robotiq
+from mani_skill.agents.robots import Fetch, Panda, Xmate3Robotiq, XArm7Ability
 from mani_skill.envs.sapien_env import BaseEnv
 from mani_skill.sensors.camera import CameraConfig
 from mani_skill.utils import sapien_utils
@@ -53,10 +54,10 @@ class PushCubeEnv(BaseEnv):
     Visualization: https://maniskill.readthedocs.io/en/dev/tasks/index.html#pushcube-v1
     """
 
-    SUPPORTED_ROBOTS = ["panda", "xmate3_robotiq", "fetch"]
+    SUPPORTED_ROBOTS = ["panda", "xmate3_robotiq", "fetch", "xarm7_ability", "xarm7_five"] # Try to support another robot
 
     # Specify some supported robot types
-    agent: Union[Panda, Xmate3Robotiq, Fetch]
+    agent: Union[Panda, Xmate3Robotiq, Fetch, XArm7Ability, XArm7Five]
 
     # set some commonly used values
     goal_radius = 0.1
@@ -139,7 +140,15 @@ class PushCubeEnv(BaseEnv):
 
             # here we write some randomization code that randomizes the x, y position of the cube we are pushing in the range [-0.1, -0.1] to [0.1, 0.1]
             xyz = torch.zeros((b, 3))
+            
+            # xyz[..., 0] = torch.rand((b, 1)) * 0.1 + 0.3
+            # xyz[..., 1] = torch.rand((b, 1)) * 0.2 - 0.1
+            
             xyz[..., :2] = torch.rand((b, 2)) * 0.2 - 0.1
+
+            if self.robot_uids == 'xarm7_ability' or self.robot_uids == "xarm7_five":
+                xyz[..., 0] += 0.3
+
             xyz[..., 2] = self.cube_half_size
             q = [1, 0, 0, 0]
             # we can then create a pose object using Pose.create_from_pq to then set the cube pose with. Note that even though our quaternion
@@ -174,6 +183,8 @@ class PushCubeEnv(BaseEnv):
 
         return {
             "success": is_obj_placed,
+            "goal_pos": self.goal_region.pose.p,
+            "obj_pose": self.obj.pose.p
         }
 
     def _get_obs_extra(self, info: Dict):
@@ -188,7 +199,7 @@ class PushCubeEnv(BaseEnv):
             # for visual observation modes one should rely on the sensed visual data to determine where the cube is
             obs.update(
                 obj_pose=self.obj.pose.raw_pose,
-            )
+            )   
         return obs
 
     def compute_dense_reward(self, obs: Any, action: Array, info: Dict):
@@ -210,13 +221,23 @@ class PushCubeEnv(BaseEnv):
             self.obj.pose.p[..., :2] - self.goal_region.pose.p[..., :2], axis=1
         )
         place_reward = 1 - torch.tanh(5 * obj_to_goal_dist)
-        reward += place_reward * reached
 
-        # assign rewards to parallel environments that achieved success to the maximum of 3.
-        reward[info["success"]] = 3
+        # Modify the reward
+        if self.robot_uids == "xarm7_ability" or self.robot_uids == "xarm7_five":
+            reward += place_reward * 2
+            reward[info["success"]] = 5
+        else:
+            reward += place_reward * reached
+            reward[info["success"]] = 3
+        
         return reward
 
     def compute_normalized_dense_reward(self, obs: Any, action: Array, info: Dict):
         # this should be equal to compute_dense_reward / max possible reward
-        max_reward = 3.0
+        
+        if self.robot_uids == "xarm7_ability" or self.robot_uids == "xarm7_five":
+            max_reward = 5.0
+        else:
+            max_reward = 3.0
+
         return self.compute_dense_reward(obs=obs, action=action, info=info) / max_reward

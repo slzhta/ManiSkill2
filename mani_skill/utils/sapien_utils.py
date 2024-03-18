@@ -163,6 +163,11 @@ def normalize_vector(x, eps=1e-6):
 T = TypeVar("T")
 
 
+def output_all_objs(objs: List[T]):
+    for x in objs:
+        print(x.get_name())
+
+
 def get_obj_by_name(objs: List[T], name: str, is_unique=True):
     """Get a object given the name.
 

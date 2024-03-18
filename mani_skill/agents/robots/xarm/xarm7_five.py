@@ -11,9 +11,9 @@ from mani_skill.utils import sapien_utils
 
 
 @register_agent()
-class XArm7Ability(BaseAgent):
-    uid = "xarm7_ability"
-    urdf_path = f"{PACKAGE_ASSET_DIR}/robots/xarm7/xarm7_ability_right_hand.urdf"
+class XArm7Five(BaseAgent):
+    uid = "xarm7_five"
+    urdf_path = f"{PACKAGE_ASSET_DIR}/robots/xarm7/xarm7_five_finger_right_hand.urdf"
     urdf_config = dict(
         _materials=dict(
             front_finger=dict(
@@ -21,24 +21,23 @@ class XArm7Ability(BaseAgent):
             )
         ),
         link=dict(
-            thumnb_L2=dict(
+            Link11=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-            index_L2=dict(
+            Link22=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-            middle_L2=dict(
+            Link33=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-            ring_L2=dict(
+            Link44=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-            pinky_L2=dict(
+            Link55=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-        ),
+        )
     )
-    # --------------------------------------------------------------------------------------
 
     def __init__(self, *args, **kwargs):
         self.arm_joint_names = [
@@ -55,18 +54,20 @@ class XArm7Ability(BaseAgent):
         self.arm_force_limit = 500
 
         self.hand_joint_names = [
-            "thumb_q1",
-            "index_q1",
-            "middle_q1",
-            "ring_q1",
-            "pinky_q1",
-            "thumb_q2",
-            "index_q2",
-            "middle_q2",
-            "ring_q2",
-            "pinky_q2",
+            # "Link111",
+            "Link1",
+            # "Link11",
+            "Link2",
+            # "Link22",
+            "Link3",
+            # "Link33",
+            "Link4",
+            # "Link44",
+            "Link5",
+            "Link51"
+            # "Link55"
         ]
-
+       
         self.hand_stiffness = 1e3
         self.hand_damping = 1e2
         self.hand_force_limit = 50
@@ -148,58 +149,42 @@ class XArm7Ability(BaseAgent):
         return deepcopy_dict(controller_configs)
 
     def _after_init(self):
+            
         hand_front_link_names = [
-            "thumb_L2",
-            "index_L2",
-            "middle_L2",
-            "ring_L2",
-            "pinky_L2",
+            "Link11",
+            "Link22",
+            "Link33",
+            "Link44",
+            "Link53",
+            "Link52",
+            "Link51",
         ]
         self.hand_front_links = sapien_utils.get_objs_by_names(
             self.robot.get_links(), hand_front_link_names
         )
-
-        finger_tip_link_names = [
-            "thumb_tip",
-            "index_tip",
-            "middle_tip",
-            "ring_tip",
-            "pinky_tip",
-        ]
-        self.finger_tip_links = sapien_utils.get_objs_by_names(
-            self.robot.get_links(), finger_tip_link_names
-        )
-
         self.tcp = sapien_utils.get_obj_by_name(
             self.robot.get_links(), self.ee_link_name
         )
 
         self.queries: Dict[str, Tuple[physx.PhysxGpuContactQuery, Tuple[int]]] = dict()
 
-        # sapien_utils.output_all_objs(self.robot.get_links()) # For debug
-
         hand_behind_link_names = [
-            "thumb_L1",
-            "index_L1",
-            "middle_L1",
-            "ring_L1",
-            "pinky_L1",
+            "Link1",
+            "Link2",
+            "Link3",
+            "Link4",
+            "Link5",
         ]
-
         self.hand_behind_links = sapien_utils.get_objs_by_names(
             self.robot.get_links(), hand_behind_link_names
         )
 
         self.hand_base = sapien_utils.get_obj_by_name(
-            self.robot.get_links(), "thumb_base"
+            self.robot.get_links(), "Link111"
         )
 
         self.link_base = sapien_utils.get_obj_by_name(
             self.robot.get_links(), "link_base"
-        )
-
-        self.unknow_base = sapien_utils.get_obj_by_name(
-            self.robot.get_links(), "base"
         )
 
         link_names = [
@@ -215,3 +200,4 @@ class XArm7Ability(BaseAgent):
         self.arm_links = sapien_utils.get_objs_by_names(
             self.robot.get_links(), link_names
         )
+        
