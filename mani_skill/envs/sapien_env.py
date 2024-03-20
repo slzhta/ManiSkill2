@@ -156,6 +156,11 @@ class BaseEnv(gym.Env):
         reconfiguration_freq: int = 0,
         force_use_gpu_sim: bool = False,
     ):
+        if physx.is_gpu_enabled():
+            print("Use GPU")
+        else:
+            print("Use CPU")
+
         self.num_envs = num_envs
         self.reconfiguration_freq = reconfiguration_freq
         self._reconfig_counter = 0
@@ -1161,22 +1166,22 @@ class BaseEnv(gym.Env):
                                              pose=link._objs[0].entity.pose)
 
         
-        for obj in non_robot_list:
-            if first_create_flag:
-                if physx.is_gpu_enabled():
-                    new_pose = obj.pose.raw_pose
-                    obj._objs[0].set_pose(sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
-                    self.viwer.add_entity(obj._objs[0])
-                else:
-                    self.viwer.add_entity(obj._objs[0])
-            else:
-                if physx.is_gpu_enabled():
-                    new_pose = obj.pose.raw_pose
-                    self.viwer.update_entity(name=obj._objs[0].name,
-                                             pose=sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
-                else:
-                    self.viwer.update_entity(name=obj._objs[0].name,
-                                             pose=obj._objs[0].pose)
+        # for obj in non_robot_list:
+        #     if first_create_flag:
+        #         if physx.is_gpu_enabled():
+        #             new_pose = obj.pose.raw_pose
+        #             obj._objs[0].set_pose(sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+        #             self.viwer.add_entity(obj._objs[0])
+        #         else:
+        #             self.viwer.add_entity(obj._objs[0])
+        #     else:
+        #         if physx.is_gpu_enabled():
+        #             new_pose = obj.pose.raw_pose
+        #             self.viwer.update_entity(name=obj._objs[0].name,
+        #                                      pose=sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+        #         else:
+        #             self.viwer.update_entity(name=obj._objs[0].name,
+        #                                      pose=obj._objs[0].pose)
 
 
         self.viwer.update_all()

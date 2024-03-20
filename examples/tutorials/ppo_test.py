@@ -431,14 +431,15 @@ if __name__=="__main__":
         n_epochs=16,
         tensorboard_log="./logs",
         gamma=0.9,
-        target_kl=0.05
+        target_kl=0.05,
+        learning_rate=3e-4,
     )
 
     print("Finish prepare.")
 
     # Train with PPO
-    model.learn(10_000, callback=[checkpoint_callback, eval_callback])
-    model.save("./logs/latest_model")
+    # model.learn(10_000, callback=[checkpoint_callback, eval_callback])
+    # model.save("./logs/latest_model")
 
     # optionally load back the model that was saved
     # model = model.load("./logs/latest_model")

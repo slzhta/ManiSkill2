@@ -63,9 +63,9 @@ class Args:
     """the number of steps to run in each evaluation environment during evaluation"""
     anneal_lr: bool = False
     """Toggle learning rate annealing for policy and value networks"""
-    gamma: float = 0.95
+    gamma: float = 0.97
     """the discount factor gamma"""
-    gae_lambda: float = 0.9
+    gae_lambda: float = 0.95
     """the lambda for the general advantage estimation"""
     num_minibatches: int = 32
     """the number of mini-batches"""
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
     if args.capture_video:
         eval_envs = RecordEpisode(eval_envs, output_dir=f"runs/{run_name}/videos", save_trajectory=False, max_steps_per_video=args.num_eval_steps, video_fps=30)
-    envs = ManiSkillVectorEnv(envs, args.num_envs,ignore_terminations=not args.partial_reset, **env_kwargs)
+    envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=not args.partial_reset, **env_kwargs)
     eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=not args.partial_reset, **env_kwargs)
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
@@ -242,6 +242,7 @@ if __name__ == "__main__":
             failures = []
             for _ in range(args.num_eval_steps):
                 with torch.no_grad():
+                    # eval_obs, _, eval_terminations, eval_truncations, eval_infos = eval_envs.step(agent.get_action(eval_obs, deterministic=True))
                     eval_obs, _, eval_terminations, eval_truncations, eval_infos = eval_envs.step(agent.get_action(eval_obs, deterministic=True))
                     if "final_info" in eval_infos:
                         mask = eval_infos["_final_info"]
@@ -306,8 +307,8 @@ if __name__ == "__main__":
                 writer.add_scalar("charts/episodic_length", final_info["elapsed_steps"][done_mask].cpu().numpy().mean(), global_step)
 
                 # TODO: In this part, if we fail, final values should be 0, otherwise it should be 1 / (1 - gamma) (always success)
-                final_values[step, torch.arange(args.num_envs, device=device)[done_mask]] = torch.max(final_info["success"][done_mask] / (1 - args.gamma), 
-                                                                                                      agent.get_value(final_info["final_observation"][done_mask]).view(-1))
+                # final_values[step, torch.arange(args.num_envs, device=device)[done_mask]] = torch.max(final_info["success"][done_mask] / (1 - args.gamma), 
+                #                                                                                       agent.get_value(final_info["final_observation"][done_mask]).view(-1))
 
                 # final_values[step, torch.arange(args.num_envs, device=device)[done_mask]] = agent.get_value(final_info["final_observation"][done_mask]).view(-1)
 

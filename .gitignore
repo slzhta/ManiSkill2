@@ -36,6 +36,7 @@ imgui.ini
 /demos
 /videos
 /examples/benchmarking/videos
+/examples/tutorials/logs
 
 # testing
 .coverage*
