@@ -35,7 +35,7 @@ from mani_skill.utils.structs.pose import Pose
 from mani_skill.utils.structs.types import Array, GPUMemoryConfig, SimConfig
 
 
-@register_env("PushCube-v1", max_episode_steps=50)
+@register_env("PushCube-v1", max_episode_steps=200)
 class PushCubeEnv(BaseEnv):
     """
     Task Description
@@ -147,7 +147,7 @@ class PushCubeEnv(BaseEnv):
             xyz[..., :2] = torch.rand((b, 2)) * 0.2 - 0.1
 
             if self.robot_uids == 'xarm7_ability' or self.robot_uids == "xarm7_five":
-                xyz[..., 0] += 0.3
+                xyz[..., 0] += 0.4
 
             xyz[..., 2] = self.cube_half_size
             q = [1, 0, 0, 0]
@@ -187,6 +187,9 @@ class PushCubeEnv(BaseEnv):
             "obj_pose": self.obj.pose.p
         }
 
+    def get_other_obj(self):
+        return [self.obj, self.goal_region]
+
     def _get_obs_extra(self, info: Dict):
         # some useful observation info for solving the task includes the pose of the tcp (tool center point) which is the point between the
         # grippers of the robot
@@ -208,10 +211,23 @@ class PushCubeEnv(BaseEnv):
             p=self.obj.pose.p
             + torch.tensor([-self.cube_half_size - 0.005, 0, 0], device=self.device)
         )
-        tcp_to_push_pose = tcp_push_pose.p - self.agent.tcp.pose.p
-        tcp_to_push_pose_dist = torch.linalg.norm(tcp_to_push_pose, axis=1)
-        reaching_reward = 1 - torch.tanh(5 * tcp_to_push_pose_dist)
-        reward = reaching_reward
+        if self.robot_uids == "xarm7_ability" or self.robot_uids == "xarm7_five":
+            tcp_to_push_pose = tcp_push_pose.p - self.agent.tcp.pose.p
+            tcp_to_push_pose_dist = torch.linalg.norm(tcp_to_push_pose, axis=1)
+            reaching_reward = 1 - torch.tanh(5 * tcp_to_push_pose_dist)
+
+            for obj in self.agent.hand_front_links:
+                obj_to_push_pose = obj.pose.p - tcp_push_pose.p
+                push_dist = torch.linalg.norm(obj_to_push_pose, axis=1)
+                this_reward = 1 - torch.tanh(5 * push_dist)
+                reaching_reward = torch.max(reaching_reward, this_reward)
+
+            reward = reaching_reward
+        else:
+            tcp_to_push_pose = tcp_push_pose.p - self.agent.tcp.pose.p
+            tcp_to_push_pose_dist = torch.linalg.norm(tcp_to_push_pose, axis=1)
+            reaching_reward = 1 - torch.tanh(5 * tcp_to_push_pose_dist)
+            reward = reaching_reward
 
         # compute a placement reward to encourage robot to move the cube to the center of the goal region
         # we further multiply the place_reward by a mask reached so we only add the place reward if the robot has reached the desired push pose
@@ -224,7 +240,7 @@ class PushCubeEnv(BaseEnv):
 
         # Modify the reward
         if self.robot_uids == "xarm7_ability" or self.robot_uids == "xarm7_five":
-            reward += place_reward * 2
+            reward += place_reward * 2 * reaching_reward # Smooth reach condition
             reward[info["success"]] = 5
         else:
             reward += place_reward * reached

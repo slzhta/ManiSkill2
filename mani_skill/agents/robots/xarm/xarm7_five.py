@@ -33,7 +33,7 @@ class XArm7Five(BaseAgent):
             Link44=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
-            Link55=dict(
+            Link53=dict(
                 material="front_finger", patch_radius=0.05, min_patch_radius=0.04
             ),
         )
@@ -64,8 +64,9 @@ class XArm7Five(BaseAgent):
             "Link4",
             # "Link44",
             "Link5",
-            "Link51"
-            # "Link55"
+            "Link51",
+            # "Link52",
+            # "Link53"
         ]
        
         self.hand_stiffness = 1e3

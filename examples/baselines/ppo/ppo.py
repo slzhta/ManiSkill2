@@ -55,9 +55,9 @@ class Args:
     """the number of parallel environments"""
     num_eval_envs: int = 8
     """the number of parallel evaluation environments"""
-    num_steps: int = 50
+    num_steps: int = 200
     """the number of steps to run in each environment per policy rollout"""
-    num_eval_steps: int = 50
+    num_eval_steps: int = 200
     """the number of steps to run in each evaluation environment during evaluation"""
     anneal_lr: bool = False
     """Toggle learning rate annealing for policy and value networks"""
@@ -86,6 +86,8 @@ class Args:
     eval_freq: int = 25
     """evaluation frequency in terms of iterations"""
     finite_horizon_gae: bool = True
+
+    robot_uids: str = "xarm7_five"
 
     # to be filled in runtime
     batch_size: int = 0
@@ -180,8 +182,8 @@ if __name__ == "__main__":
     # env setup
     env_kwargs = dict(obs_mode="state", 
                       control_mode="pd_joint_delta_pos", 
-                      render_mode="rgb_array", 
-                      robot_uids="xarm7_five", 
+                      render_mode="open3d", 
+                      robot_uids=args.robot_uids, 
                       reward_mode="normalized_dense")
     envs = gym.make(args.env_id, num_envs=args.num_envs, **env_kwargs)
     eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, **env_kwargs)
@@ -189,7 +191,7 @@ if __name__ == "__main__":
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
     if args.capture_video:
-        eval_envs = RecordEpisode(eval_envs, output_dir=f"runs/{run_name}/videos", save_video=False, save_trajectory=False, max_steps_per_video=args.num_eval_steps, video_fps=30)
+        eval_envs = RecordEpisode(eval_envs, output_dir=f"runs/{run_name}/videos", save_video=True, save_trajectory=False, max_steps_per_video=args.num_eval_steps, video_fps=30)
     envs = ManiSkillVectorEnv(envs, args.num_envs, **env_kwargs)
     eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=False, **env_kwargs)
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"

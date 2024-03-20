@@ -43,7 +43,7 @@ def make_env(env_id: str, max_episode_steps: int = None, record_dir: str = None)
                        control_mode=control_mode, 
                        max_episode_steps=max_episode_steps, 
                        robot_uids="xarm7_five", # Try to build this robot
-                       render_mode="rgb_array")
+                       render_mode="open3d")
         # For training, we regard the task as a continuous task with infinite horizon.
         # you can use the ContinuousTaskWrapper here for that
         if max_episode_steps is not None:
@@ -397,7 +397,7 @@ if __name__=="__main__":
     reward_mode = "normalized_dense" # this the default reward mode which is a dense reward scaled to [0, 1]
 
     # create one eval environment
-    eval_env = SubprocVecEnv([make_env(env_id) for i in range(1)])
+    eval_env = SubprocVecEnv([make_env(env_id, record_dir="./logs/vedio") for i in range(1)])
     eval_env = VecMonitor(eval_env) # attach this so SB3 can log reward metrics
     eval_env.seed(0)
     eval_env.reset()
@@ -447,15 +447,15 @@ if __name__=="__main__":
 
     eval_env.close() # close the old eval env
     # make a new one that saves to a different directory
-    eval_env = SubprocVecEnv([make_env(env_id) for i in range(1)])
+    eval_env = SubprocVecEnv([make_env(env_id, record_dir="logs/eval_videos") for i in range(1)])
     # eval_env = SubprocVecEnv([make_env(env_id, record_dir="logs/eval_videos") for i in range(1)])
     eval_env = VecMonitor(eval_env) # attach this so SB3 can log reward metrics
     eval_env.seed(1)
     eval_env.reset()
 
     # Do self-writen evaluation to get more information
-    for i in range(20):
-        make_evaluation(model, eval_env, i, env_id) 
+    # for i in range(20):
+    #     make_evaluation(model, eval_env, i, env_id) 
 
     # Use sb3 eval to check if eval is correct
     returns, ep_lens = evaluate_policy(model, eval_env, deterministic=True, render=False, return_episode_rewards=True, n_eval_episodes=10)

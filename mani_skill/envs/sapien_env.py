@@ -45,6 +45,8 @@ from mani_skill.utils.structs.articulation import Articulation
 from mani_skill.utils.structs.types import Array, SimConfig
 from mani_skill.utils.visualization.misc import observations_to_images, tile_images
 
+from mani_skill.envs.open3d_render import CustomizedViewer
+
 
 class BaseEnv(gym.Env):
     """Superclass for ManiSkill environments.
@@ -158,6 +160,9 @@ class BaseEnv(gym.Env):
         self._custom_sensor_cfgs = sensor_cfgs
         self._custom_human_render_camera_cfgs = human_render_camera_cfgs
         self.robot_uids = robot_uids
+
+        self.viwer = None
+
         if self.SUPPORTED_ROBOTS is not None:
             assert robot_uids in self.SUPPORTED_ROBOTS
         if num_envs > 1 or force_use_gpu_sim:
@@ -316,6 +321,8 @@ class BaseEnv(gym.Env):
             self.agent = agents[0]
         else:
             self.agent = MultiAgent(agents)
+        
+        self.init_q_pose = None
         # TODO (stao): do we stil need this?
         # set_articulation_render_material(self.agent.robot, specular=0.9, roughness=0.3)
     @property
@@ -674,7 +681,14 @@ class BaseEnv(gym.Env):
             self._reconfig_counter -= 1
         # Set the episode rng again after reconfiguration to guarantee seed reproducibility
         self._set_episode_rng(self._episode_seed)
-        self.agent.reset()
+
+        if self.init_q_pose is None:
+            self.agent.reset()
+            self.init_q_pose = self.agent.robot.get_qpos()
+        else:
+            _data_index = torch.arange(self.num_envs).to(self.device)
+            self.agent.reset(init_qpos=self.init_q_pose[_data_index[self._scene._reset_mask]]) # To reset q pose
+
         with torch.random.fork_rng():
             torch.manual_seed(self._episode_seed)
             self._initialize_episode(env_idx)
@@ -1109,6 +1123,62 @@ class BaseEnv(gym.Env):
             images.extend(observations_to_images(sensor_images))
         return tile_images(images)
 
+    def get_other_obj(self):
+        return []
+
+    def render_open_3d(self):
+        non_robot_list = self.get_other_obj()
+
+        # first_create_flag = False
+
+        # if self.viwer is None:
+        #     self.viwer = CustomizedViewer()
+        #     first_create_flag = True
+
+        first_create_flag = True
+        self.viwer = CustomizedViewer()
+
+        for link in self.agent.robot.get_links():
+            if first_create_flag:
+                if physx.is_gpu_enabled():
+                    new_pose = link.pose.raw_pose
+                    link._objs[0].set_pose(sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+                    self.viwer.add_entity(link._objs[0].entity)
+                else:
+                    self.viwer.add_entity(link._objs[0].entity)
+            else:
+                if physx.is_gpu_enabled():
+                    new_pose = link.pose.raw_pose
+                    self.viwer.update_entity(name=link._objs[0].entity.name, 
+                                             pose=sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+                else:
+                    self.viwer.update_entity(name=link._objs[0].entity.name, 
+                                             pose=link._objs[0].entity.pose)
+
+        
+        for obj in non_robot_list:
+            if first_create_flag:
+                if physx.is_gpu_enabled():
+                    new_pose = obj.pose.raw_pose
+                    obj._objs[0].set_pose(sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+                    self.viwer.add_entity(obj._objs[0])
+                else:
+                    self.viwer.add_entity(obj._objs[0])
+            else:
+                if physx.is_gpu_enabled():
+                    new_pose = obj.pose.raw_pose
+                    self.viwer.update_entity(name=obj._objs[0].name,
+                                             pose=sapien.Pose(new_pose[0][:3].cpu().numpy(), new_pose[0][3:].cpu().numpy()))
+                else:
+                    self.viwer.update_entity(name=obj._objs[0].name,
+                                             pose=obj._objs[0].pose)
+
+
+        self.viwer.update_all()
+        image = self.viwer.view_all_with_np()
+
+        return (torch.from_numpy(image) * 255).to(torch.uint8)
+
     def render(self):
         """
         Either opens a viewer if render_mode is "human", or returns an array that you can use to save videos.
@@ -1125,6 +1195,8 @@ class BaseEnv(gym.Env):
             return self.render_rgb_array()
         elif self.render_mode == "sensors":
             return self.render_sensors()
+        elif self.render_mode == "open3d":
+            return self.render_open_3d()
         else:
             raise NotImplementedError(f"Unsupported render mode {self.render_mode}.")
 
