@@ -1,12 +1,12 @@
 # Installation
 
-Installing ManiSkill is quite simple with a single pip install and potentially installing vulkan if you don't have it already.
+Installing ManiSkill is quite simple with a single pip install and potentially installing torch and vulkan if you don't have it already.
 
 From pip (stable version):
 
 ```bash
 # this is currently a beta version of mani_skill with GPU simulation
-pip install mani-skill==3.0.0.dev3
+pip install --upgrade mani-skill
 ```
 
 <!-- add the other install options one released -->
@@ -22,6 +22,13 @@ From source:
 git clone https://github.com/haosulab/ManiSkill2.git
 cd ManiSkill2 && git checkout -b dev --track origin/dev && pip install -e .
 ```
+
+Note that installing mani_skill will not automatically install torch which is necessary. You can install torch as so
+```
+pip install torch torchvision torchaudio
+```
+
+just make sure you are installing the version of torch that your computer can work with.
 
 :::{note}
 While state-based simulation does not require any additional dependencies, a GPU with the Vulkan driver installed is required to enable rendering in ManiSkill. See [here](#vulkan) for how to install and configure Vulkan on Ubuntu.

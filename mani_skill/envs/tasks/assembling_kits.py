@@ -18,6 +18,7 @@ from mani_skill.utils.registration import register_env
 from mani_skill.utils.scene_builder.table.table_scene_builder import TableSceneBuilder
 from mani_skill.utils.structs.actor import Actor
 from mani_skill.utils.structs.pose import Pose
+from mani_skill.utils.structs.types import GPUMemoryConfig, SimConfig
 
 
 @register_env("AssemblingKits-v1", max_episode_steps=200)
@@ -61,18 +62,22 @@ class AssemblingKitsEnv(BaseEnv):
         )
 
     @property
+    def _default_sim_cfg(self):
+        return SimConfig(
+            gpu_memory_cfg=GPUMemoryConfig(max_rigid_contact_count=2**20)
+        )
+
+    @property
     def _sensor_configs(self):
         pose = sapien_utils.look_at([0.2, 0, 0.4], [0, 0, 0])
-        return [
-            CameraConfig("base_camera", pose.p, pose.q, 128, 128, np.pi / 2, 0.01, 100)
-        ]
+        return [CameraConfig("base_camera", pose, 128, 128, np.pi / 2, 0.01, 100)]
 
     @property
     def _human_render_camera_configs(self):
         pose = sapien_utils.look_at([0.3, 0.3, 0.8], [0.0, 0.0, 0.1])
-        return CameraConfig("render_camera", pose.p, pose.q, 512, 512, 1, 0.01, 100)
+        return CameraConfig("render_camera", pose, 512, 512, 1, 0.01, 100)
 
-    def _load_scene(self):
+    def _load_scene(self, options: dict):
         with torch.device(self.device):
             self.table_scene = TableSceneBuilder(self)
             self.table_scene.build()
@@ -94,7 +99,7 @@ class AssemblingKitsEnv(BaseEnv):
             self.goal_rot = np.zeros((self.num_envs,))
 
             for i, eps_idx in enumerate(eps_idxs):
-                scene_mask = [i]
+                scene_idxs = [i]
                 episode = self._episodes[eps_idx]
 
                 # get the kit builder and the goal positions/rotations of all other objects
@@ -104,7 +109,7 @@ class AssemblingKitsEnv(BaseEnv):
                     object_goal_rot,
                 ) = self._get_kit_builder_and_goals(episode["kit"])
                 kit = (
-                    kit_builder.set_scene_idxs(scene_mask)
+                    kit_builder.set_scene_idxs(scene_idxs)
                     .set_initial_pose(sapien.Pose([0, 0, 0.01]))
                     .build_static(f"kit_{i}")
                 )
@@ -112,7 +117,7 @@ class AssemblingKitsEnv(BaseEnv):
                 # create the object to place and make it dynamic
                 obj_to_place = (
                     self._get_object_builder(episode["obj_to_place"])
-                    .set_scene_idxs(scene_mask)
+                    .set_scene_idxs(scene_idxs)
                     .build(f"obj_{i}")
                 )
                 self.object_ids.append(episode["obj_to_place"])
@@ -121,7 +126,7 @@ class AssemblingKitsEnv(BaseEnv):
                 # create all other objects and leave them as static as they do not need to be manipulated
                 other_objs = [
                     self._get_object_builder(obj_id, static=True)
-                    .set_scene_idxs(scene_mask)
+                    .set_scene_idxs(scene_idxs)
                     .set_initial_pose(
                         sapien.Pose(
                             object_goal_pos[obj_id],
@@ -193,7 +198,7 @@ class AssemblingKitsEnv(BaseEnv):
         )
         return builder
 
-    def _initialize_episode(self, env_idx: torch.Tensor):
+    def _initialize_episode(self, env_idx: torch.Tensor, options: dict):
         with torch.device(self.device):
             b = len(env_idx)
             self.table_scene.initialize(env_idx)
@@ -205,10 +210,6 @@ class AssemblingKitsEnv(BaseEnv):
                 b, device=self.device, lock_x=True, lock_y=True
             )
             self.obj.set_pose(Pose.create_from_pq(p=xyz, q=q))
-
-    def _initialize_task(self):
-        self._obj_init_pos = np.float32(self.spawn_pos)
-        self._obj_goal_pos = np.float32(self.objects_pos[self.object_id])
 
     def _check_pos_diff(self, pos_eps=2e-2):
         pos_diff = self.goal_pos[:, :2] - self.obj.pose.p[:, :2]
